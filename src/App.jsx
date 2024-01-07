@@ -3,33 +3,34 @@ import "./App.css";
 import gsap from "gsap";
 import { useGSAP } from "@gsap/react";
 import { useRef } from "react";
-import { ScrollTrigger } from "gsap/all";
+import { ScrollTrigger, TextPlugin } from "gsap/all";
 
-gsap.registerPlugin(ScrollTrigger);
+gsap.registerPlugin(ScrollTrigger, TextPlugin);
 
 function App() {
   const container = useRef(null);
+  const canvasRef = useRef(null);
 
-  const [showCanvas, setShowCanvas] = useState(false);
+  const [mode, setMode] = useState("moveUp");
+  const [mouse, setMouse] = useState({ x: 0, y: 0 });
+
+  const handleMouseMove = (e) => {
+    setMouse({ x: e.screenX, y: e.screenY });
+    console.log(mouse);
+  };
 
   useEffect(() => {
-    let canvas = document.querySelector("canvas");
-    canvas.height = window.innerHeight;
+    let canvas = canvasRef.current;
     canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
     let ctx = canvas.getContext("2d");
-
-    const resizeCanvas = () => {
-      canvas.height = window.innerHeight;
-      canvas.width = window.innerWidth;
-    };
-
-    window.addEventListener("resize", resizeCanvas);
 
     const TWO_PI = Math.PI * 2;
     let stars = [];
     let starCount = canvas.width < 768 ? 200 : 550;
-    // let time = 0;
+    let dt = 0.1;
     let starColors = ["#ffffff", "#ffe9c4", "#d4fbff"];
+    let gravity = 10000;
 
     for (let i = 0; i < starCount; i++) {
       let x = Math.random() * canvas.width;
@@ -46,18 +47,25 @@ function App() {
         depth: depth,
         vx: 0,
         vy: 10,
+        ax: 0,
+        ay: 0,
       });
     }
 
     function drawStars() {
       for (let i = 0; i < stars.length; i++) {
-        let { x, y, radius, color } = stars[i];
+        let star = stars[i];
+
+        star.vx += star.ax * dt;
+        star.vy += star.ay * dt;
+        star.x += star.vx * dt;
+        star.y += star.vy * dt;
 
         ctx.beginPath();
-        ctx.arc(x, y, radius, 0, TWO_PI);
-        ctx.fillStyle = color;
+        ctx.arc(star.x, star.y, star.radius, 0, TWO_PI);
+        ctx.fillStyle = star.color;
         ctx.shadowColor = "#fff";
-        ctx.shadowBlur = 13 * radius;
+        ctx.shadowBlur = 13 * star.radius;
         ctx.shadowOffsetX = 0;
         ctx.shadowOffsetY = 0;
         ctx.stroke();
@@ -65,64 +73,39 @@ function App() {
       }
     }
 
-    function moveStars() {
+    function moveUp() {
       for (let i = 0; i < stars.length; i++) {
         let star = stars[i];
-        star.y += star.vy / star.depth;
+        star.vy = 10 / star.depth;
         if (star.y > canvas.height) {
-          star.x = Math.random() * canvas.width;
-          star.depth = Math.random() * 20;
           star.y = -10;
         }
       }
     }
 
-    function applyGravity() {
+    function gravityCursor() {
       for (let i = 0; i < stars.length; i++) {
-        for (let j = 0; j < stars.length; j++) {
-          if (i === j) continue;
-          let star1 = stars[i];
-          let star2 = stars[j];
-
-          let dx = star1.x - star2.x;
-          let dy = star1.y - star2.y;
-
-          let distanceSq = dx * dx + dy * dy;
-          if (distanceSq === 0) distanceSq = 0.01;
-          let distance = Math.sqrt(distanceSq);
-          let forceX = 0; //  (dx / distance) * (star1.radius * star2.radius) / (distanceSq);
-          let forceY = 0; // (dy / distance) * (star1.radius * star2.radius) / (distanceSq);
-
-          star1.vx -= forceX / star1.radius;
-          star1.vy -= forceY / star2.radius;
-
-          star2.vx -= forceX / star2.radius;
-          star2.vy -= forceY / star2.radius;
-
-          star1.x += star1.vx;
-          star1.y += star1.vy;
-
-          star2.x += star2.vx;
-          star2.y += star2.vy;
-        }
+        let star = stars[i];
+        let dx = mouse.x - star.x;
+        let dy = mouse.y - star.y;
+        let distSq = dx * dx + dy * dy;
+        let dist = Math.sqrt(distSq);
+        let force = gravity / distSq;
+        star.ax = (force * dx) / dist;
+        star.ay = (force * dy) / dist;
       }
     }
 
     function update() {
-      console.log("update");
       ctx.clearRect(0, 0, canvas.width, canvas.height);
-      // moveStars();
-      applyGravity();
+      if (mode === "gravity") gravityCursor();
+      else if (mode === "moveUp") moveUp();
       drawStars();
       requestAnimationFrame(update);
     }
 
-    if (showCanvas) update();
-
-    return () => {
-      window.removeEventListener("resize", resizeCanvas);
-    };
-  }, [showCanvas]);
+    update();
+  });
 
   useGSAP(
     () => {
@@ -157,27 +140,38 @@ function App() {
         .from("#intro-name", {
           opacity: 0,
           display: "none",
-          onComplete: () => setShowCanvas(true),
+          onComplete: () => {
+            setMode("moveUp");
+          },
         })
 
         .from("canvas", { opacity: 0 })
         .to("#intro-name", { opacity: 0, display: "none" })
 
-        .from("#intro-skill", { opacity: 0, display: "none" });
+        .from("#intro-skill", { opacity: 0, display: "none" })
+
+        .from("#skill", { opacity: 0, display: "none" })
+        .to("#skill", {
+          text: { value: "data analyst", delimiter: "" },
+          duration: 5,
+        })
+        .to("#skill", {
+          text: { value: "physicist", delimiter: "" },
+        });
     },
     { scope: container }
   );
 
   return (
     <div className="App" ref={container}>
-      <canvas></canvas>
+      <canvas onMouseMove={handleMouseMove} ref={canvasRef}></canvas>
       <div className="intro">
         <h1 id="intro-greet-start">Hello there.</h1>
         <h1 id="intro-greet-mid">Its a bit bright isn't it?</h1>
         <h1 id="intro-greet-end">Thats better :)</h1>
         <h1 id="intro-name">I'm Wahid.</h1>
         <h1 id="intro-skill">
-          I'm a <span id="skill">web developer</span>.
+          I'm a <span id="skill">web developer</span>
         </h1>
       </div>
     </div>
