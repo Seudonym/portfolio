@@ -1,0 +1,23 @@
+* {
+    margin: 0;
+    padding: 0;
+}
+
+.intro {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    font-family: 'Roboto', sans-serif;
+    font-size: xx-large;
+}
+
+canvas {
+    z-index: -1;
+    position: fixed;
+}
+
+h1 {
+    display: fixed;
+}
