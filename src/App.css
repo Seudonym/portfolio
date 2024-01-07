@@ -18,6 +18,16 @@ canvas {
     position: fixed;
 }
 
-h1 {
-    display: fixed;
+/* For mobile */
+@media (max-width: 800px) {
+    .intro {
+        font-size: 22px;
+    }
 }
+
+@media (max-width:  540px) {
+    .intro {
+        font-size: 15px;
+    } 
+}
+
